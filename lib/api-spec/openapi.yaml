@@ -1,0 +1,414 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API for the Lycée Mustapha El Maâni club membership, badges, attendance, and reports.
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: club
+    description: Club dashboard data
+  - name: students
+    description: Student membership and digital badges
+  - name: sessions
+    description: Friday club sessions
+  - name: attendance
+    description: Session attendance
+  - name: reports
+    description: Attendance reports and exports
+security:
+  - ClerkSession: []
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /club/overview:
+    get:
+      operationId: getDashboardOverview
+      tags: [club]
+      summary: Get dashboard totals and the latest session
+      responses:
+        "200":
+          description: Dashboard overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardOverview"
+  /students:
+    get:
+      operationId: listStudents
+      tags: [students]
+      summary: List students with optional search and status filters
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ACTIVE, INACTIVE]
+      responses:
+        "200":
+          description: Matching students
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Student"
+    post:
+      operationId: createStudent
+      tags: [students]
+      summary: Enroll a student and issue an encrypted digital badge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentInput"
+      responses:
+        "201":
+          description: Enrolled student
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+        "409":
+          description: A student with this Massar number already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /students/{studentId}:
+    parameters:
+      - name: studentId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getStudent
+      tags: [students]
+      summary: Get a student profile
+      responses:
+        "200":
+          description: Student profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+        "404":
+          description: Student not found
+    patch:
+      operationId: updateStudent
+      tags: [students]
+      summary: Update student details or authorization status
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentUpdate"
+      responses:
+        "200":
+          description: Updated student
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Student"
+        "404":
+          description: Student not found
+  /students/{studentId}/badge:
+    parameters:
+      - name: studentId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getStudentBadge
+      tags: [students]
+      summary: Get the student's opaque encrypted QR token
+      responses:
+        "200":
+          description: Opaque digital badge token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadgeToken"
+        "404":
+          description: Student not found
+  /sessions:
+    get:
+      operationId: listSessions
+      tags: [sessions]
+      summary: List club sessions
+      responses:
+        "200":
+          description: Club sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClubSession"
+    post:
+      operationId: createSession
+      tags: [sessions]
+      summary: Create a Friday club session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionInput"
+      responses:
+        "201":
+          description: Created session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClubSession"
+        "409":
+          description: A session already exists for this date
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /attendance/scan:
+    post:
+      operationId: scanAttendance
+      tags: [attendance]
+      summary: Validate a badge token and record attendance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AttendanceScanInput"
+      responses:
+        "200":
+          description: Attendance recorded, duplicate, or authorization warning
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanResult"
+        "400":
+          description: Invalid, altered, inactive, or unrecognized badge token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Session not found
+  /reports/{sessionId}:
+    parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getSessionReport
+      tags: [reports]
+      summary: Get present and absent students for a session
+      responses:
+        "200":
+          description: Attendance report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionReport"
+        "404":
+          description: Session not found
+  /reports/{sessionId}/csv:
+    parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: exportSessionCsv
+      tags: [reports]
+      summary: Export a session attendance report as CSV
+      responses:
+        "200":
+          description: UTF-8 CSV report
+          content:
+            text/csv:
+              schema:
+                type: string
+components:
+  securitySchemes:
+    ClerkSession:
+      type: apiKey
+      in: cookie
+      name: __session
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+    Student:
+      type: object
+      required:
+        - id
+        - fullName
+        - massarNumber
+        - classroom
+        - parentPhone
+        - parentAuthSigned
+        - photoAuthSigned
+        - status
+        - registrationDate
+      properties:
+        id: { type: string }
+        fullName: { type: string }
+        massarNumber: { type: string }
+        classroom: { type: string }
+        parentPhone: { type: string }
+        parentAuthSigned: { type: boolean }
+        photoAuthSigned: { type: boolean }
+        medicalNotes: { type: ["string", "null"] }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+        registrationDate: { type: string, format: date-time }
+    StudentInput:
+      type: object
+      required:
+        - fullName
+        - massarNumber
+        - classroom
+        - parentPhone
+        - parentAuthSigned
+        - photoAuthSigned
+      properties:
+        fullName: { type: string, minLength: 2, maxLength: 160 }
+        massarNumber: { type: string, minLength: 3, maxLength: 32 }
+        classroom: { type: string, minLength: 1, maxLength: 80 }
+        parentPhone: { type: string, minLength: 6, maxLength: 32 }
+        parentAuthSigned: { type: boolean }
+        photoAuthSigned: { type: boolean }
+        medicalNotes: { type: ["string", "null"], maxLength: 1000 }
+    StudentUpdate:
+      type: object
+      properties:
+        fullName: { type: string, minLength: 2, maxLength: 160 }
+        massarNumber: { type: string, minLength: 3, maxLength: 32 }
+        classroom: { type: string, minLength: 1, maxLength: 80 }
+        parentPhone: { type: string, minLength: 6, maxLength: 32 }
+        parentAuthSigned: { type: boolean }
+        photoAuthSigned: { type: boolean }
+        medicalNotes: { type: ["string", "null"], maxLength: 1000 }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+    BadgeToken:
+      type: object
+      required: [studentId, token]
+      properties:
+        studentId: { type: string }
+        token: { type: string }
+    ClubSession:
+      type: object
+      required: [id, date, title, startTime, endTime, createdAt]
+      properties:
+        id: { type: string }
+        date: { type: string, format: date }
+        title: { type: string }
+        startTime: { type: string }
+        endTime: { type: string }
+        createdAt: { type: string, format: date-time }
+    SessionInput:
+      type: object
+      required: [date, title, startTime, endTime]
+      properties:
+        date: { type: string, format: date }
+        title: { type: string, minLength: 2, maxLength: 200 }
+        startTime: { type: string, pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$" }
+        endTime: { type: string, pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$" }
+    AttendanceScanInput:
+      type: object
+      required: [token, sessionId]
+      properties:
+        token: { type: string, minLength: 24, maxLength: 2048 }
+        sessionId: { type: string, minLength: 1, maxLength: 100 }
+    AttendanceRecord:
+      type: object
+      required: [student, scannedAt]
+      properties:
+        student: { $ref: "#/components/schemas/Student" }
+        scannedAt: { type: string, format: date-time }
+    ScanResult:
+      type: object
+      required: [status, student, timestamp]
+      properties:
+        status: { type: string, enum: [present, duplicate, warning] }
+        student: { $ref: "#/components/schemas/Student" }
+        timestamp: { type: string, format: date-time }
+        message: { type: ["string", "null"] }
+    AttendanceStudent:
+      type: object
+      required: [id, fullName, massarNumber, classroom, parentPhone, parentAuthSigned, photoAuthSigned, status]
+      properties:
+        id: { type: string }
+        fullName: { type: string }
+        massarNumber: { type: string }
+        classroom: { type: string }
+        parentPhone: { type: string }
+        parentAuthSigned: { type: boolean }
+        photoAuthSigned: { type: boolean }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+        scannedAt: { type: ["string", "null"], format: date-time }
+    SessionReport:
+      type: object
+      required: [session, totalStudents, presentCount, absentCount, attendanceRate, present, absent]
+      properties:
+        session: { $ref: "#/components/schemas/ClubSession" }
+        totalStudents: { type: integer }
+        presentCount: { type: integer }
+        absentCount: { type: integer }
+        attendanceRate: { type: number }
+        present:
+          type: array
+          items: { $ref: "#/components/schemas/AttendanceStudent" }
+        absent:
+          type: array
+          items: { $ref: "#/components/schemas/AttendanceStudent" }
+    DashboardOverview:
+      type: object
+      required: [totalStudents, activeStudents, parentAuthorizations, photoAuthorizations, lastSession, attendanceRate, presentToday]
+      properties:
+        totalStudents: { type: integer }
+        activeStudents: { type: integer }
+        parentAuthorizations: { type: integer }
+        photoAuthorizations: { type: integer }
+        lastSession: { oneOf: [{ $ref: "#/components/schemas/ClubSession" }, { type: "null" }] }
+        attendanceRate: { type: number }
+        presentToday: { type: integer }
+

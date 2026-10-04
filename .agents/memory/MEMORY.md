@@ -1,0 +1,1 @@
+- [Clerk SDK alignment](clerk-sdk-alignment.md) — verify imports against resolved React/shared versions; a clean typecheck did not catch a Clerk runtime mismatch.

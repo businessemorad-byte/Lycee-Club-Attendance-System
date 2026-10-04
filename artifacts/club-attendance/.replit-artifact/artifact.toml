@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Lycée Club Attendance"
+description = "A secure admin app for managing Lycée Mustapha El Maâni educational club members, encrypted digital badges, Friday attendance scanning, and session reports."
+version = "1.0.0"
+id = "artifacts/club-attendance"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20274
+
+[services.development]
+run = "pnpm --filter @workspace/club-attendance run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/club-attendance", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/club-attendance/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20274"
+BASE_PATH = "/"
