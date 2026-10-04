@@ -14,20 +14,6 @@
       "framework": "vite"
     }
   },
-  "bindings": [
-    {
-      "type": "service",
-      "service": "club-attendance",
-      "format": "url",
-      "env": "CLUB_ATTENDANCE_URL"
-    },
-    {
-      "type": "service",
-      "service": "mockup-sandbox",
-      "format": "url",
-      "env": "MOCKUP_SANDBOX_URL"
-    }
-  ],
   "rewrites": [
     {
       "source": "/api/(.*)",
