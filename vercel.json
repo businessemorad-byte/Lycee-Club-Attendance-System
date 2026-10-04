@@ -1,0 +1,68 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "api-server": {
+      "root": "artifacts/api-server",
+      "framework": "express"
+    },
+    "club-attendance": {
+      "root": "artifacts/club-attendance",
+      "framework": "vite"
+    },
+    "mockup-sandbox": {
+      "root": "artifacts/mockup-sandbox",
+      "framework": "vite"
+    }
+  },
+  "bindings": [
+    {
+      "type": "service",
+      "service": "club-attendance",
+      "format": "url",
+      "env": "CLUB_ATTENDANCE_URL"
+    },
+    {
+      "type": "service",
+      "service": "mockup-sandbox",
+      "format": "url",
+      "env": "MOCKUP_SANDBOX_URL"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": {
+        "service": "api-server",
+        "path": "/$1"
+      }
+    },
+    {
+      "source": "/api/__clerk/(.*)",
+      "destination": {
+        "service": "api-server",
+        "path": "/api/__clerk/$1"
+      }
+    },
+    {
+      "source": "/components/preview/(.*)",
+      "destination": {
+        "service": "mockup-sandbox",
+        "path": "/$1"
+      }
+    },
+    {
+      "source": "/(api/healthz|healthz)",
+      "destination": {
+        "service": "api-server",
+        "path": "/api/healthz"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "club-attendance",
+        "path": "/$1"
+      }
+    }
+  ]
+}
